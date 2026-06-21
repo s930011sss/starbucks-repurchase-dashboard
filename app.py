@@ -1,64 +1,92 @@
-import math
+from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 
 st.set_page_config(
-    page_title="Post-Offer Repurchase Dashboard",
+    page_title="Member Action Decision Dashboard",
     page_icon="",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 
-MEMBER_PROFILES = {
-    "M-10482": {
-        "offer_status": "Completed",
-        "anchor_time": "Hour 504",
-        "membership_tenure_days": 642,
-        "purchase_frequency": 14,
-        "average_spend": 8.7,
-        "prior_completion_rate": 0.72,
-        "offer_response_speed": 10,
-        "recent7_tx_count": 3,
-        "purchase_gap_hours": 38,
-        "customer_value": "High",
-        "category": "Coffee",
-        "cluster": "High-value loyalist",
-    },
-    "M-23891": {
-        "offer_status": "Expired",
-        "anchor_time": "Hour 576",
-        "membership_tenure_days": 218,
-        "purchase_frequency": 3,
-        "average_spend": 5.4,
-        "prior_completion_rate": 0.18,
-        "offer_response_speed": None,
-        "recent7_tx_count": 0,
-        "purchase_gap_hours": 156,
-        "customer_value": "Low",
-        "category": "Tea",
-        "cluster": "At-risk low response",
-    },
-    "M-77510": {
-        "offer_status": "Completed",
-        "anchor_time": "Hour 612",
-        "membership_tenure_days": 510,
-        "purchase_frequency": 8,
-        "average_spend": 12.2,
-        "prior_completion_rate": 0.46,
-        "offer_response_speed": 34,
-        "recent7_tx_count": 1,
-        "purchase_gap_hours": 84,
-        "customer_value": "High",
-        "category": "Bakery",
-        "cluster": "High value needs follow-up",
-    },
+DATA_PATH = Path(__file__).with_name("demo_customers.csv")
+DEFAULT_MEMBER = "M-10482"
+SEGMENT_COLORS = {
+    "The regulars who live in the rewards app": "#33E0A1",
+    "High value weekend explorers": "#39D2FF",
+    "Discount-sensitive deal seekers": "#8B6CFF",
+    "Quiet members at risk": "#FFCF5A",
+    "New members needing a nudge": "#FF8A5B",
 }
 
 
-DEFAULT_MEMBER = "M-10482"
-st.session_state.setdefault("member_id", DEFAULT_MEMBER)
+@st.cache_data
+def load_customer_data():
+    frame = pd.read_csv(DATA_PATH)
+    frame["member_id"] = frame["member_id"].str.upper()
+    return frame
+
+
+def clamp(value, low=0.0, high=1.0):
+    return max(low, min(high, value))
+
+
+def find_member(frame, member_id):
+    normalized = member_id.strip().upper()
+    matched = frame.loc[frame["member_id"].eq(normalized)]
+    if matched.empty:
+        return frame.loc[frame["member_id"].eq(DEFAULT_MEMBER)].iloc[0], False
+    return matched.iloc[0], True
+
+
+def donut(label, value, color):
+    angle = round(clamp(value) * 360)
+    return f"""
+    <div class="donut-item">
+      <div class="donut" style="--angle:{angle}deg; --donut-color:{color};">
+        <div class="donut-inner">{value:.2f}</div>
+      </div>
+      <div class="donut-label">{label}</div>
+    </div>
+    """
+
+
+def bar_rows(member):
+    metrics = [
+        ("Decision Score", member["decision_score"], 0.61),
+        ("Uplift Score", member["uplift_score"], 0.42),
+        ("Reward App Activity", member["reward_app_activity"], 0.52),
+        ("Population Fit", member["population_fit"], 0.58),
+    ]
+    rows = []
+    for label, member_value, pop_value in metrics:
+        rows.append(
+            f"""
+            <div class="bar-row">
+              <div class="bar-label">{label}</div>
+              <div>
+                <div class="bar-track"><div class="bar-fill" style="width:{member_value * 100:.0f}%;"></div></div>
+                <div class="bar-track lower"><div class="bar-fill population" style="width:{pop_value * 100:.0f}%;"></div></div>
+              </div>
+              <div class="bar-value">{member_value:.2f}</div>
+            </div>
+            """
+        )
+    return "\n".join(rows)
+
+
+def build_action_list(frame, budget, eligible_segments):
+    if not eligible_segments:
+        return frame.head(0).copy(), 0.0
+
+    eligible = frame.loc[frame["cluster"].isin(eligible_segments)].copy()
+    eligible = eligible.sort_values(["decision_score", "uplift_score"], ascending=False)
+    eligible["cumulative_cost"] = eligible["cost"].cumsum()
+    selected = eligible.loc[eligible["cumulative_cost"].le(budget)].copy()
+    return selected, float(selected["cost"].sum()) if not selected.empty else 0.0
 
 
 CSS = """
@@ -78,7 +106,7 @@ CSS = """
   --cyan: #39D2FF;
   --purple: #8B6CFF;
   --green: #33E0A1;
-  --warning: #FFCF5A;
+  --orange: #FF9A3D;
 }
 
 html, body, [data-testid="stAppViewContainer"] {
@@ -102,10 +130,9 @@ footer {
   width: 1440px;
   max-width: 1440px;
   min-height: 960px;
-  padding: 24px 36px !important;
+  padding: 24px 32px !important;
 }
 
-.block-container > div[data-testid="stVerticalBlock"],
 .block-container div[data-testid="stVerticalBlock"] {
   gap: 0 !important;
 }
@@ -114,101 +141,164 @@ div[data-testid="stElementContainer"] {
   margin: 0 !important;
 }
 
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 32px;
-  width: 1368px;
-  height: 904px;
+div[data-testid="stVerticalBlockBorderWrapper"] {
+  height: 100%;
+  overflow: hidden;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24) !important;
 }
 
-.left-rail {
-  display: grid;
-  grid-template-rows: 204px 1fr;
-  gap: 24px;
-}
-
-.right-area {
-  display: grid;
-  grid-template-rows: 180px 306px 1fr;
-  gap: 20px;
-}
-
-.top-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.middle-row {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 20px;
+div[data-testid="stVerticalBlockBorderWrapper"] > div {
+  padding: 16px 18px !important;
 }
 
 .card {
+  height: 100%;
+  overflow: hidden;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
-  overflow: hidden;
 }
 
-.input-card {
+.top-card {
+  height: 150px;
+}
+
+.inspect-card {
+  height: 210px;
+}
+
+.action-card {
+  height: 410px;
+}
+
+.logo-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, var(--cyan), var(--blue) 58%, var(--purple));
+  box-shadow: 0 12px 26px rgba(47, 128, 255, 0.28);
+}
+
+.brand-text {
+  color: #FFFFFF;
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.metric-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 16px;
+}
+
+.metric-value {
+  color: #FFFFFF;
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.metric-note {
+  color: #BED1ED;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 13px;
+}
+
+.cluster-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #061A3A;
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 800;
+  background: var(--segment-color);
+}
+
+.input-card,
+.detail-card,
+.compare-card,
+.customize-card,
+.table-card {
   padding: 22px;
 }
 
-.member-title {
+.card-title {
   color: #FFFFFF;
-  font-size: 22px;
+  font-size: 18px;
+  line-height: 1.2;
   font-weight: 800;
-  line-height: 1.15;
-  margin: 0 0 6px;
-  letter-spacing: 0;
+  margin: 0 0 8px;
 }
 
-.member-subtitle {
+.card-copy {
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.45;
-  margin: 0 0 18px;
+  line-height: 1.48;
+  margin: 0 0 14px;
 }
 
-div[data-testid="stTextInput"] {
-  width: 276px !important;
+div[data-testid="stTextInput"],
+div[data-testid="stNumberInput"],
+div[data-testid="stMultiSelect"] {
+  width: 100% !important;
 }
 
-div[data-testid="stTextInput"] label {
+div[data-testid="stTextInput"] label,
+div[data-testid="stNumberInput"] label,
+div[data-testid="stMultiSelect"] label {
   color: #BFD2EC !important;
   font-size: 12px !important;
   font-weight: 700 !important;
 }
 
-div[data-baseweb="input"] > div {
-  min-height: 44px !important;
-  height: 44px !important;
+div[data-baseweb="input"] > div,
+div[data-baseweb="select"] > div {
+  min-height: 42px !important;
   background: rgba(5, 18, 43, 0.76) !important;
   border: 1px solid rgba(113, 180, 255, 0.22) !important;
   border-radius: 10px !important;
 }
 
-div[data-baseweb="input"] input {
+div[data-baseweb="input"] input,
+div[data-baseweb="select"] span {
   color: #F7FBFF !important;
   font-size: 13px !important;
   font-weight: 700 !important;
 }
 
-div[data-testid="stButton"] {
-  width: 132px;
-}
-
 div[data-testid="stButton"] button {
-  width: 132px;
-  height: 42px;
+  width: 100%;
+  height: 38px;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 800;
-  border: 1px solid rgba(113, 180, 255, 0.26);
 }
 
 div[data-testid="stButton"] button[kind="primary"] {
@@ -218,129 +308,72 @@ div[data-testid="stButton"] button[kind="primary"] {
   box-shadow: 0 12px 26px rgba(47, 128, 255, 0.28);
 }
 
-div[data-testid="stButton"] button[kind="secondary"] {
-  background: rgba(5, 18, 43, 0.72);
-  color: #CFE0F7;
-}
-
-.info-card {
-  padding: 24px;
-}
-
-.eyebrow {
-  color: var(--cyan);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.card-title {
+.widget-title {
   color: #FFFFFF;
   font-size: 18px;
-  font-weight: 800;
   line-height: 1.2;
-  margin: 0;
+  font-weight: 800;
+  margin: 0 0 8px;
 }
 
-.card-copy {
+.widget-copy {
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.55;
-  margin: 8px 0 0;
+  line-height: 1.48;
+  margin: 0 0 14px;
 }
 
-.summary-card {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.summary-label {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 18px;
-}
-
-.summary-value {
-  color: #FFFFFF;
-  font-size: 34px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.summary-text-value {
-  color: #FFFFFF;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.summary-note {
-  color: #BED1ED;
-  font-size: 12px;
-  line-height: 1.45;
+.donut-grid {
+  height: 112px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  align-items: center;
   margin-top: 14px;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  min-height: 30px;
-  padding: 0 12px;
-  color: #061A3A;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  background: var(--green);
+.donut-item {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
 }
 
-.analysis-card {
-  padding: 22px 24px;
-}
-
-.gauge-wrap {
-  height: 204px;
+.donut {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
+  background: conic-gradient(var(--donut-color) 0deg, var(--cyan) var(--angle), rgba(113, 180, 255, 0.14) var(--angle) 360deg);
 }
 
-.gauge {
-  width: 168px;
-  height: 168px;
+.donut-inner {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: conic-gradient(var(--green) 0deg, var(--cyan) var(--angle), rgba(113, 180, 255, 0.14) var(--angle) 360deg);
   display: grid;
   place-items: center;
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.08);
-}
-
-.gauge-inner {
-  width: 122px;
-  height: 122px;
-  border-radius: 50%;
   background: #071A3A;
-  display: grid;
-  place-items: center;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
   border: 1px solid rgba(113, 180, 255, 0.22);
 }
 
-.gauge-number {
-  color: #FFFFFF;
-  font-size: 34px;
-  font-weight: 800;
+.donut-label {
+  color: #D9E8FF;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+  text-align: center;
 }
 
 .bar-row {
   display: grid;
-  grid-template-columns: 168px 1fr 44px;
+  grid-template-columns: 150px 1fr 44px;
   gap: 14px;
   align-items: center;
-  margin: 16px 0;
+  margin: 12px 0;
 }
 
 .bar-label {
@@ -351,9 +384,14 @@ div[data-testid="stButton"] button[kind="secondary"] {
 
 .bar-track {
   height: 10px;
+  overflow: hidden;
   border-radius: 999px;
   background: rgba(113, 180, 255, 0.14);
-  overflow: hidden;
+}
+
+.bar-track.lower {
+  height: 6px;
+  margin-top: 6px;
 }
 
 .bar-fill {
@@ -362,318 +400,213 @@ div[data-testid="stButton"] button[kind="secondary"] {
   background: linear-gradient(90deg, var(--blue), var(--cyan));
 }
 
+.bar-fill.population {
+  background: linear-gradient(90deg, var(--purple), var(--cyan));
+  opacity: 0.62;
+}
+
 .bar-value {
   color: var(--muted);
   font-size: 12px;
   text-align: right;
 }
 
-.info-grid {
+.budget-summary {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-top: 22px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(113, 180, 255, 0.13);
-}
-
-.info-row:last-child {
-  border-bottom: 0;
-}
-
-.info-label {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.info-value {
-  color: #FFFFFF;
-  font-size: 13px;
-  font-weight: 800;
-  text-align: right;
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  color: #061A3A;
-  background: var(--green);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.status-chip.expired {
-  background: var(--warning);
-}
-
-.detail-card {
-  height: 369px;
-  padding: 24px 28px;
-}
-
-.detail-layout {
-  display: block;
-  margin-top: 18px;
-}
-
-.strategy-headline {
-  color: #FFFFFF;
-  font-size: 28px;
-  line-height: 1.15;
-  font-weight: 800;
-  margin: 12px 0 10px;
-}
-
-.strategy-body {
-  color: #BFD2EC;
-  font-size: 14px;
-  line-height: 1.65;
-  margin: 0;
-  max-width: 860px;
-}
-
-.action-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 18px;
-  max-width: 760px;
-}
-
-.action-tile {
-  min-height: 76px;
-  border-radius: 14px;
-  padding: 14px;
+.summary-tile {
+  padding: 9px 10px;
+  border-radius: 12px;
   background: rgba(5, 18, 43, 0.54);
   border: 1px solid rgba(113, 180, 255, 0.16);
 }
 
-.action-title {
-  color: #FFFFFF;
-  font-size: 13px;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-
-.action-copy {
+.summary-tile-label {
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11px;
+  font-weight: 700;
 }
 
+.summary-tile-value {
+  color: #FFFFFF;
+  font-size: 17px;
+  font-weight: 800;
+  margin-top: 5px;
+}
+
+div[data-testid="stDataFrame"] {
+  border: 1px solid rgba(113, 180, 255, 0.18);
+  border-radius: 12px;
+  overflow: hidden;
+}
 </style>
 """
 
 
-def clamp(value, low, high):
-    return max(low, min(high, value))
+customers = load_customer_data()
+segments = list(SEGMENT_COLORS.keys())
 
+st.session_state.setdefault("member_id", DEFAULT_MEMBER)
+st.session_state.setdefault("budget", 45.0)
+st.session_state.setdefault("eligible_segments", [segments[0], segments[1], segments[2]])
 
-def load_member(member_id):
-    normalized = member_id.strip().upper()
-    return MEMBER_PROFILES.get(normalized, MEMBER_PROFILES[DEFAULT_MEMBER])
-
-
-def compute_prediction(profile):
-    response = 0 if profile["offer_response_speed"] is None else clamp((48 - profile["offer_response_speed"]) / 48, 0, 1)
-    recency_component = clamp((168 - profile["purchase_gap_hours"]) / 168, 0, 1)
-    score = (
-        0.18
-        + clamp(profile["membership_tenure_days"] / 1000, 0, 0.22)
-        + clamp(profile["purchase_frequency"] / 40, 0, 0.22)
-        + clamp(profile["average_spend"] / 40, 0, 0.16)
-        + profile["prior_completion_rate"] * 0.16
-        + response * 0.16
-        + profile["recent7_tx_count"] * 0.035
-        + recency_component * 0.12
-    )
-    probability = clamp(score, 0.08, 0.94)
-
-    if probability >= 0.72:
-        strategy = "Loyalty follow-up, no heavy discount"
-        segment = "High Propensity Loyalist"
-        tone = "High confidence"
-    elif probability >= 0.50:
-        strategy = "Personalized retention offer"
-        segment = "High Value Needs Follow-Up"
-        tone = "Medium confidence"
-    else:
-        strategy = "Win-back reminder"
-        segment = "At-Risk Low Response"
-        tone = "Needs attention"
-
-    return probability, segment, strategy, tone
-
-
-def pct(value):
-    return f"{round(value * 100)}%"
-
-
-def response_speed_label(value):
-    if value is None:
-        return "No completion"
-    return f"{value}h"
-
-
-member_id = st.session_state.member_id
-profile = load_member(member_id)
-probability, segment, strategy, confidence = compute_prediction(profile)
-angle = round(probability * 360)
-
-member_values = {
-    "Membership Tenure": clamp(profile["membership_tenure_days"] / 900 * 100, 0, 100),
-    "Purchase Frequency": clamp(profile["purchase_frequency"] / 18 * 100, 0, 100),
-    "Average Spend": clamp(profile["average_spend"] / 16 * 100, 0, 100),
-    "Prior Completion": profile["prior_completion_rate"] * 100,
-    "Recent Activity": clamp(profile["recent7_tx_count"] / 4 * 100, 0, 100),
-}
-cluster_values = {
-    "Membership Tenure": 58,
-    "Purchase Frequency": 52,
-    "Average Spend": 50,
-    "Prior Completion": 46,
-    "Recent Activity": 42,
-}
-
-status_class = "expired" if profile["offer_status"] == "Expired" else ""
-matched_member = st.session_state.member_id.strip().upper() in MEMBER_PROFILES
-
-bars = ""
-for label, member_score in member_values.items():
-    cluster_score = cluster_values[label]
-    bars += f"""
-    <div class="bar-row">
-      <div class="bar-label">{label}</div>
-      <div>
-        <div class="bar-track"><div class="bar-fill" style="width:{member_score:.0f}%;"></div></div>
-        <div class="bar-track" style="height:6px; margin-top:6px;"><div class="bar-fill" style="width:{cluster_score:.0f}%; background:linear-gradient(90deg, #8B6CFF, #39D2FF); opacity:.62;"></div></div>
-      </div>
-      <div class="bar-value">{member_score:.0f}</div>
-    </div>
-    """
+member, matched = find_member(customers, st.session_state.member_id)
+segment_color = SEGMENT_COLORS.get(member["cluster"], "#33E0A1")
+selected_actions, used_budget = build_action_list(
+    customers,
+    float(st.session_state.budget),
+    st.session_state.eligible_segments,
+)
+remaining_budget = max(float(st.session_state.budget) - used_budget, 0)
 
 st.html(CSS)
 
-left_col, right_col = st.columns([320, 1016], gap="large")
+top_cols = st.columns([1.05, 1, 1, 1], gap="large")
+with top_cols[0]:
+    st.html(
+        """
+        <div class="card logo-card top-card">
+          <div class="brand-mark"></div>
+          <div class="brand-text">Member AI</div>
+        </div>
+        """
+    )
+with top_cols[1]:
+    st.html(
+        f"""
+        <div class="card metric-card top-card">
+          <div class="metric-label">Decision Score</div>
+          <div class="metric-value">{member["decision_score"]:.2f}</div>
+          <div class="metric-note">Data source: Layer 1 scoring output.</div>
+        </div>
+        """
+    )
+with top_cols[2]:
+    st.html(
+        f"""
+        <div class="card metric-card top-card">
+          <div class="metric-label">Customer Segment</div>
+          <div class="cluster-pill" style="--segment-color:{segment_color};">{member["cluster"]}</div>
+          <div class="metric-note">Data source: Layer 2 clustering output.</div>
+        </div>
+        """
+    )
+with top_cols[3]:
+    st.html(
+        f"""
+        <div class="card metric-card top-card">
+          <div class="metric-label">Cost for this customer</div>
+          <div class="metric-value">${member["cost"]:.0f}</div>
+          <div class="metric-note">Fixed cost from the member's cluster group.</div>
+        </div>
+        """
+    )
 
-with left_col:
-    with st.container():
+st.html('<div style="height: 18px;"></div>')
+
+inspect_cols = st.columns([1.28, 1.28, 2.55], gap="large")
+with inspect_cols[0]:
+    with st.container(border=True):
         st.html(
             """
-            <div class="card input-card">
-              <div class="member-title">Member Input</div>
-              <p class="member-subtitle">Search by member ID. The backend reconstructs the latest offer-resolution context and model features.</p>
+            <div class="widget-title">Member ID Input</div>
+            <p class="widget-copy">Search a member from the CSV-backed demo data.</p>
             """
         )
-        st.text_input("Member ID", key="member_id", placeholder="M-10482")
-        button_col_1, button_col_2 = st.columns(2, gap="small")
-        with button_col_1:
-            st.button("Run Model", type="primary")
-        with button_col_2:
-            if st.button("Demo Reset"):
-                st.session_state.member_id = DEFAULT_MEMBER
-                st.rerun()
-        st.html("</div>")
+        st.text_input("Member ID", key="member_id", placeholder=DEFAULT_MEMBER)
+        st.button("Search", type="primary")
 
+with inspect_cols[1]:
     st.html(
         f"""
-        <div class="card info-card" style="height: 614px; margin-top: 24px;">
-          <div class="eyebrow">Customer Basic Information</div>
-          <div class="card-title">Profile and latest offer context</div>
-          <p class="card-copy">These values are generated from raw member, transaction, and offer history. They are readable summaries, not manual model inputs.</p>
-          <div class="info-grid">
-            <div class="info-row"><span class="info-label">Member ID</span><span class="info-value">{st.session_state.member_id.strip().upper()}</span></div>
-            <div class="info-row"><span class="info-label">Lookup Status</span><span class="info-value">{"Matched demo member" if matched_member else "Using demo fallback"}</span></div>
-            <div class="info-row"><span class="info-label">Latest Offer Status</span><span class="info-value"><span class="status-chip {status_class}">{profile["offer_status"]}</span></span></div>
-            <div class="info-row"><span class="info-label">Anchor Time</span><span class="info-value">{profile["anchor_time"]}</span></div>
-            <div class="info-row"><span class="info-label">Membership Tenure</span><span class="info-value">{profile["membership_tenure_days"]} days</span></div>
-            <div class="info-row"><span class="info-label">Purchase Frequency</span><span class="info-value">{profile["purchase_frequency"]} prior tx</span></div>
-            <div class="info-row"><span class="info-label">Average Spend</span><span class="info-value">${profile["average_spend"]:.2f}</span></div>
-            <div class="info-row"><span class="info-label">Prior Completion Rate</span><span class="info-value">{pct(profile["prior_completion_rate"])}</span></div>
-            <div class="info-row"><span class="info-label">Offer Response Speed</span><span class="info-value">{response_speed_label(profile["offer_response_speed"])}</span></div>
+        <div class="card detail-card inspect-card">
+          <div class="card-title">Detail Score</div>
+          <p class="card-copy">Uplift score, p-control, and p-treat from Layer 2.</p>
+          <div class="donut-grid">
+            {donut("Uplift", member["uplift_score"], "#33E0A1")}
+            {donut("P-Control", member["p_control"], "#39D2FF")}
+            {donut("P-Treat", member["p_treat"], "#8B6CFF")}
           </div>
         </div>
         """
     )
 
-with right_col:
+with inspect_cols[2]:
     st.html(
         f"""
-        <div class="right-area">
-          <div class="top-summary">
-            <div class="card summary-card">
-              <div class="summary-label">Repurchase Probability</div>
-              <div class="summary-value">{pct(probability)}</div>
-              <div class="summary-note">Predicted 72-hour repeat purchase propensity after the latest offer resolution.</div>
-            </div>
-            <div class="card summary-card">
-              <div class="summary-label">Customer Segment</div>
-              <div class="summary-text-value">{segment}</div>
-              <div class="summary-note">Based on value, purchase rhythm, and offer response behaviour.</div>
-            </div>
-            <div class="card summary-card">
-              <div class="summary-label">Strategy Recommendation</div>
-              <div class="pill">{strategy}</div>
-              <div class="summary-note">{confidence}. Translate model score into next-best-action.</div>
-            </div>
-          </div>
-
-          <div class="middle-row">
-            <div class="card analysis-card">
-              <div class="card-title">Probability Gauge</div>
-              <p class="card-copy">Likelihood of another transaction in the next 72 hours.</p>
-              <div class="gauge-wrap">
-                <div class="gauge" style="--angle:{angle}deg;">
-                  <div class="gauge-inner">
-                    <div class="gauge-number">{pct(probability)}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="card analysis-card">
-              <div class="card-title">Member vs Cluster Average</div>
-              <p class="card-copy">Top bar: selected member. Lower bar: similar-member benchmark.</p>
-              {bars}
-            </div>
-          </div>
-
-          <div class="card detail-card">
-            <div class="eyebrow">Strategy Recommendation Detail</div>
-            <div class="detail-layout">
-              <div>
-                <span class="pill">Next Best Action</span>
-                <div class="strategy-headline">{strategy}</div>
-                <p class="strategy-body">
-                  Member {st.session_state.member_id.strip().upper()} has a {pct(probability)} predicted repurchase propensity after a {profile["offer_status"].lower()} offer.
-                  The recommendation is based on membership tenure, purchase frequency, average spend, prior offer completion, and recent activity.
-                </p>
-                <div class="action-grid">
-                  <div class="action-tile">
-                    <div class="action-title">Offer</div>
-                    <div class="action-copy">Use incentive intensity according to propensity and value level.</div>
-                  </div>
-                  <div class="action-tile">
-                    <div class="action-title">Channel</div>
-                    <div class="action-copy">Prioritize app push and email for fast follow-up after resolution.</div>
-                  </div>
-                  <div class="action-tile">
-                    <div class="action-title">Timing</div>
-                    <div class="action-copy">Act within the 72-hour decision window.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="card compare-card inspect-card">
+          <div class="card-title">Member vs Population Average</div>
+          <p class="card-copy">Top bar: selected member. Lower bar: population average.</p>
+          {bar_rows(member)}
         </div>
         """
     )
+
+st.html('<div style="height: 18px;"></div>')
+
+action_cols = st.columns([1.28, 3.95], gap="large")
+with action_cols[0]:
+    with st.container(border=True):
+        st.html(
+            """
+            <div class="widget-title">Customize Column</div>
+            <p class="widget-copy">Set the campaign budget and choose eligible clusters.</p>
+            """
+        )
+        st.number_input("Budget", min_value=0.0, max_value=500.0, step=5.0, key="budget")
+        st.multiselect("Eligible filter", options=segments, key="eligible_segments")
+        st.html(
+            f"""
+            <div class="budget-summary">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Selected</div>
+                <div class="summary-tile-value">{len(selected_actions)}</div>
+              </div>
+              <div class="summary-tile">
+                <div class="summary-tile-label">Used Budget</div>
+                <div class="summary-tile-value">${used_budget:.0f}</div>
+              </div>
+            </div>
+            <div class="budget-summary">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Remaining</div>
+                <div class="summary-tile-value">${remaining_budget:.0f}</div>
+              </div>
+              <div class="summary-tile">
+                <div class="summary-tile-label">Source</div>
+                <div class="summary-tile-value">CSV</div>
+              </div>
+            </div>
+            """
+        )
+
+with action_cols[1]:
+    table = selected_actions[["member_id", "cluster", "cost", "decision_score"]].rename(
+        columns={
+            "member_id": "Customer ID",
+            "cluster": "Cluster",
+            "cost": "Cost",
+            "decision_score": "Decision Score",
+        }
+    )
+    with st.container(border=True):
+        st.html(
+            """
+            <div class="widget-title">Customer Action List</div>
+            <p class="widget-copy">Customers are sorted by decision score and included until cumulative cost reaches the selected budget.</p>
+            """
+        )
+        st.dataframe(
+            table,
+            hide_index=True,
+            use_container_width=True,
+            height=260,
+            column_config={
+                "Cost": st.column_config.NumberColumn("Cost", format="$%.0f"),
+                "Decision Score": st.column_config.NumberColumn("Decision Score", format="%.2f"),
+            },
+        )

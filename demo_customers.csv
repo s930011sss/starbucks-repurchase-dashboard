@@ -1,0 +1,16 @@
+member_id,cluster,cost,decision_score,uplift_score,p_control,p_treat,reward_app_activity,population_fit
+M-10482,The regulars who live in the rewards app,5,0.84,0.31,0.44,0.75,0.88,0.74
+M-23891,Quiet members at risk,9,0.43,0.18,0.26,0.44,0.22,0.39
+M-77510,High value weekend explorers,8,0.69,0.25,0.41,0.66,0.58,0.63
+M-55012,Discount-sensitive deal seekers,6,0.76,0.37,0.33,0.70,0.66,0.57
+M-90331,New members needing a nudge,4,0.58,0.21,0.29,0.50,0.35,0.46
+M-11802,The regulars who live in the rewards app,5,0.91,0.28,0.58,0.86,0.94,0.81
+M-44320,High value weekend explorers,8,0.72,0.24,0.45,0.69,0.61,0.68
+M-60218,Discount-sensitive deal seekers,6,0.67,0.34,0.30,0.64,0.51,0.49
+M-72194,Quiet members at risk,9,0.39,0.14,0.21,0.35,0.19,0.34
+M-33670,New members needing a nudge,4,0.62,0.20,0.34,0.54,0.42,0.51
+M-98415,The regulars who live in the rewards app,5,0.88,0.29,0.51,0.80,0.91,0.77
+M-29106,Discount-sensitive deal seekers,6,0.71,0.36,0.28,0.64,0.55,0.52
+M-68044,High value weekend explorers,8,0.65,0.22,0.40,0.62,0.57,0.60
+M-51927,Quiet members at risk,9,0.47,0.16,0.27,0.43,0.25,0.41
+M-80763,New members needing a nudge,4,0.56,0.19,0.32,0.51,0.39,0.48
