@@ -2,9 +2,22 @@
 
 ## 2026-06-21
 
+### Starbucks-Inspired Redesign
+
+- Redesigned the dashboard with a soft Starbucks-inspired product interface while preserving the existing member lookup, scoring, budget filter, and action-list data flow.
+- Replaced the heavy dark visual system with tokenized primary green, secondary blue/cyan, neutral gray surfaces, rounded white cards, subtle borders, and soft shadows.
+- Kept light mode as the default visual mode even on systems that prefer dark mode, while retaining dark-mode tokens for future switching.
+- Restored the analytical layout into a left-side control rail and right-side dashboard output area with top metric cards, detail score rings, comparison bars, and a customer action table.
+- Converted the customer action list from the default Streamlit dataframe to a styled HTML table for consistent premium card/table presentation.
+- Updated Streamlit multiselect chips, number controls, and app chrome selectors so selected states and hidden controls follow the new green/neutral design system.
+- Reduced the dashboard shell margin and padding so the left-side control rail fits cleanly in the 1440 x 960 desktop viewport.
+- Tightened left-rail brand height, spacing, selected-filter chips, and budget summary tiles to preserve bottom spacing in the desktop canvas.
+
+### Earlier Layout Refinement
+
 - Removed the left-side `Inspection Section` and `Action List Generator` label blocks.
 - Expanded the main dashboard content to use the full page width.
 - Realigned the top metrics, inspection cards, and action-list generator into three clean horizontal rows with consistent spacing.
 - Tightened card heights, row spacing, widget padding, and table height so the desktop layout fits more cleanly in a 1440 x 960 viewport.
 - Adjusted the top-row column ratio so the logo block aligns visually with the input and customize columns below.
-- Preserved the current dark blue SaaS visual style and CSV-backed demo data flow.
+- Preserved the previous dark blue SaaS visual style and CSV-backed demo data flow for that earlier iteration.

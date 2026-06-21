@@ -1,3 +1,4 @@
+from html import escape
 from pathlib import Path
 
 import pandas as pd
@@ -15,11 +16,11 @@ st.set_page_config(
 DATA_PATH = Path(__file__).with_name("demo_customers.csv")
 DEFAULT_MEMBER = "M-10482"
 SEGMENT_COLORS = {
-    "The regulars who live in the rewards app": "#33E0A1",
-    "High value weekend explorers": "#39D2FF",
-    "Discount-sensitive deal seekers": "#8B6CFF",
-    "Quiet members at risk": "#FFCF5A",
-    "New members needing a nudge": "#FF8A5B",
+    "The regulars who live in the rewards app": "#00754A",
+    "High value weekend explorers": "#00754A",
+    "Discount-sensitive deal seekers": "#00754A",
+    "Quiet members at risk": "#00754A",
+    "New members needing a nudge": "#00754A",
 }
 
 
@@ -89,48 +90,139 @@ def build_action_list(frame, budget, eligible_segments):
     return selected, float(selected["cost"].sum()) if not selected.empty else 0.0
 
 
+def action_table_rows(frame):
+    if frame.empty:
+        return """
+        <tr>
+          <td colspan="4" class="empty-row">No customers match the current budget and eligibility rules.</td>
+        </tr>
+        """
+
+    rows = []
+    for _, row in frame.iterrows():
+        rows.append(
+            f"""
+            <tr>
+              <td class="member-cell">{escape(row["member_id"])}</td>
+              <td>{escape(row["cluster"])}</td>
+              <td class="numeric">${row["cost"]:.0f}</td>
+              <td class="numeric score-cell">{row["decision_score"]:.2f}</td>
+            </tr>
+            """
+        )
+    return "\n".join(rows)
+
+
 CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg-1: #061A3A;
-  --bg-2: #0B2454;
-  --bg-3: #08152E;
-  --card: rgba(11, 30, 66, 0.88);
-  --card-soft: rgba(13, 40, 88, 0.72);
-  --border: rgba(113, 180, 255, 0.24);
-  --text: #F7FBFF;
-  --muted: #AFC3E2;
-  --blue: #2F80FF;
-  --cyan: #39D2FF;
-  --purple: #8B6CFF;
-  --green: #33E0A1;
-  --orange: #FF9A3D;
+  color-scheme: light;
+  --primary-50: #EEF8F2;
+  --primary-100: #DCEFE5;
+  --primary-200: #B8DEC8;
+  --primary-300: #7FBE9C;
+  --primary-400: #3D996E;
+  --primary-500: #00754A;
+  --primary-600: #006241;
+  --primary-700: #004D35;
+  --primary-800: #003B29;
+
+  --secondary-50: #EFF6FF;
+  --secondary-100: #DBEAFE;
+  --secondary-300: #7DD3FC;
+  --secondary-400: #38BDF8;
+  --secondary-500: #2D9CDB;
+  --secondary-600: #2563EB;
+  --secondary-800: #1E3A8A;
+
+  --accent-purple: #7C6FF6;
+  --accent-warning: #D9902F;
+  --accent-danger: #D94A3A;
+
+  --page-bg: radial-gradient(circle at 7% 8%, rgba(0, 117, 74, 0.13), transparent 28%),
+             radial-gradient(circle at 92% 10%, rgba(45, 156, 219, 0.12), transparent 30%),
+             linear-gradient(135deg, #F7FAF7 0%, #EEF4F0 100%);
+  --shell: rgba(255, 255, 255, 0.86);
+  --shell-border: rgba(227, 232, 228, 0.92);
+  --surface: #FFFFFF;
+  --surface-muted: #F8FAF8;
+  --surface-strong: #F0F4F1;
+  --border: #E3E8E4;
+  --border-strong: #D8E2DC;
+  --text-strong: #1F2933;
+  --text-base: #3D4842;
+  --text-muted: #7B8A82;
+  --track: #E6ECE8;
+  --ring-track: #E3E8E4;
+  --shadow-shell: 0 24px 70px rgba(0, 45, 32, 0.14);
+  --shadow-card: 0 8px 24px rgba(15, 35, 25, 0.07);
+  --shadow-hover: 0 14px 34px rgba(15, 35, 25, 0.1);
+  --radius-shell: 28px;
+  --radius-card: 20px;
+  --radius-control: 10px;
+  --focus-ring: 0 0 0 3px rgba(45, 156, 219, 0.22);
 }
 
-html, body, [data-testid="stAppViewContainer"] {
-  background:
-    radial-gradient(circle at 15% 8%, rgba(57, 210, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 78% 18%, rgba(139, 108, 255, 0.13), transparent 26%),
-    linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%);
-  color: var(--text);
+:root[data-member-ai-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: radial-gradient(circle at 86% 8%, rgba(45, 156, 219, 0.24), transparent 30%),
+             radial-gradient(circle at 10% 18%, rgba(0, 117, 74, 0.18), transparent 28%),
+             linear-gradient(135deg, #071A33 0%, #0A1F3D 55%, #071A33 100%);
+  --shell: rgba(13, 36, 69, 0.82);
+  --shell-border: rgba(125, 211, 252, 0.18);
+  --surface: #0D2445;
+  --surface-muted: #102B50;
+  --surface-strong: #071A33;
+  --border: #244A73;
+  --border-strong: #31577F;
+  --text-strong: #F8FAFC;
+  --text-base: #D6DEE8;
+  --text-muted: #9FB0C4;
+  --track: #244A73;
+  --ring-track: #244A73;
+  --shadow-shell: 0 24px 80px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.22);
+  --shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.26);
+  --focus-ring: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+[data-testid="stAppViewContainer"] {
+  background: var(--page-bg);
+  color: var(--text-base);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 [data-testid="stHeader"],
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+[data-testid="stAppDeployButton"],
+[data-testid="stBaseButton-header"],
+.stDeployButton,
 #MainMenu,
 footer {
   display: none !important;
 }
 
 .block-container {
-  width: 1440px;
-  max-width: 1440px;
-  min-height: 960px;
-  padding: 24px 32px !important;
+  width: min(1480px, calc(100vw - 32px));
+  max-width: 1480px;
+  min-height: min(960px, calc(100vh - 32px));
+  margin: 16px auto !important;
+  padding: 22px !important;
+  background: var(--shell);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-shell);
+  box-shadow: var(--shadow-shell);
+  backdrop-filter: blur(18px);
 }
 
 .block-container div[data-testid="stVerticalBlock"] {
@@ -144,86 +236,104 @@ div[data-testid="stElementContainer"] {
 div[data-testid="stVerticalBlockBorderWrapper"] {
   height: 100%;
   overflow: hidden;
-  background: var(--card) !important;
+  background: var(--surface) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
 }
 
 div[data-testid="stVerticalBlockBorderWrapper"] > div {
-  padding: 16px 18px !important;
+  padding: 18px !important;
 }
 
 .card {
   height: 100%;
   overflow: hidden;
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
-.top-card {
-  height: 150px;
+.brand-card {
+  min-height: 132px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(circle at 88% 14%, rgba(56, 189, 248, 0.16), transparent 30%),
+    linear-gradient(145deg, var(--primary-700) 0%, var(--primary-600) 54%, var(--primary-500) 100%);
+  border: 0;
+  color: #FFFFFF;
 }
 
-.inspect-card {
-  height: 210px;
-}
-
-.action-card {
-  height: 410px;
-}
-
-.logo-card {
+.brand-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 14px;
-  padding: 24px;
 }
 
 .brand-mark {
   width: 42px;
   height: 42px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, var(--cyan), var(--blue) 58%, var(--purple));
-  box-shadow: 0 12px 26px rgba(47, 128, 255, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--secondary-400) 0%, var(--secondary-500) 46%, var(--accent-purple) 100%);
+  box-shadow: 0 12px 28px rgba(45, 156, 219, 0.3);
 }
 
 .brand-text {
   color: #FFFFFF;
   font-size: 27px;
+  line-height: 1;
   font-weight: 800;
 }
 
+.brand-subtitle {
+  max-width: 220px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 18px 0 0;
+}
+
+.top-card {
+  height: 148px;
+}
+
+.inspect-card {
+  height: 224px;
+}
+
 .metric-card {
-  padding: 24px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.metric-label {
-  color: var(--muted);
-  font-size: 13px;
+.metric-label,
+.card-kicker {
+  color: var(--text-muted);
+  font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.01em;
   line-height: 1.25;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .metric-value {
-  color: #FFFFFF;
-  font-size: 38px;
+  color: var(--primary-600);
+  font-size: 42px;
   line-height: 1;
   font-weight: 800;
 }
 
 .metric-note {
-  color: #BED1ED;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.45;
-  margin-top: 13px;
+  margin-top: 14px;
 }
 
 .cluster-pill {
@@ -234,34 +344,48 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-  color: #061A3A;
+  color: #FFFFFF;
   font-size: 12px;
   line-height: 1.15;
   font-weight: 800;
   background: var(--segment-color);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
 }
 
-.input-card,
 .detail-card,
-.compare-card,
-.customize-card,
-.table-card {
+.compare-card {
   padding: 22px;
 }
 
-.card-title {
-  color: #FFFFFF;
+.card-title,
+.widget-title {
+  color: var(--text-strong);
   font-size: 18px;
   line-height: 1.2;
   font-weight: 800;
   margin: 0 0 8px;
 }
 
-.card-copy {
-  color: var(--muted);
+.card-copy,
+.widget-copy {
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.48;
   margin: 0 0 14px;
+}
+
+.lookup-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  margin-top: 12px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--primary-700);
+  background: var(--primary-50);
+  border: 1px solid var(--primary-100);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 div[data-testid="stTextInput"],
@@ -273,7 +397,7 @@ div[data-testid="stMultiSelect"] {
 div[data-testid="stTextInput"] label,
 div[data-testid="stNumberInput"] label,
 div[data-testid="stMultiSelect"] label {
-  color: #BFD2EC !important;
+  color: var(--text-base) !important;
   font-size: 12px !important;
   font-weight: 700 !important;
 }
@@ -281,112 +405,137 @@ div[data-testid="stMultiSelect"] label {
 div[data-baseweb="input"] > div,
 div[data-baseweb="select"] > div {
   min-height: 42px !important;
-  background: rgba(5, 18, 43, 0.76) !important;
-  border: 1px solid rgba(113, 180, 255, 0.22) !important;
-  border-radius: 10px !important;
+  background: var(--surface-muted) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: none !important;
+}
+
+div[data-baseweb="input"] > div:focus-within,
+div[data-baseweb="select"] > div:focus-within {
+  border-color: var(--secondary-500) !important;
+  box-shadow: var(--focus-ring) !important;
 }
 
 div[data-baseweb="input"] input,
 div[data-baseweb="select"] span {
-  color: #F7FBFF !important;
+  color: var(--text-strong) !important;
   font-size: 13px !important;
   font-weight: 700 !important;
 }
 
 div[data-testid="stButton"] button {
   width: 100%;
-  height: 38px;
-  border-radius: 10px;
+  height: 40px;
+  border-radius: var(--radius-control);
   font-size: 13px;
   font-weight: 800;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 div[data-testid="stButton"] button[kind="primary"] {
-  background: linear-gradient(135deg, #39D2FF 0%, #2F80FF 100%);
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
   color: #FFFFFF;
   border: 0;
-  box-shadow: 0 12px 26px rgba(47, 128, 255, 0.28);
+  box-shadow: 0 12px 26px rgba(0, 98, 65, 0.22);
 }
 
-.widget-title {
-  color: #FFFFFF;
-  font-size: 18px;
-  line-height: 1.2;
-  font-weight: 800;
-  margin: 0 0 8px;
+div[data-testid="stButton"] button[kind="primary"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(0, 98, 65, 0.26);
 }
 
-.widget-copy {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.48;
-  margin: 0 0 14px;
+span[data-baseweb="tag"],
+div[data-baseweb="tag"] {
+  min-height: 28px !important;
+  border-radius: 8px !important;
+  background: var(--primary-50) !important;
+  border: 1px solid var(--primary-100) !important;
+}
+
+span[data-baseweb="tag"] span,
+div[data-baseweb="tag"] span {
+  color: var(--primary-700) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+span[data-baseweb="tag"] svg,
+div[data-baseweb="tag"] svg {
+  fill: var(--primary-600) !important;
+}
+
+div[data-testid="stNumberInput"] button {
+  background: var(--surface-strong) !important;
+  border-left: 1px solid var(--border) !important;
+  color: var(--primary-700) !important;
 }
 
 .donut-grid {
-  height: 112px;
+  height: 126px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .donut-item {
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: 9px;
 }
 
 .donut {
-  width: 68px;
-  height: 68px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: conic-gradient(var(--donut-color) 0deg, var(--cyan) var(--angle), rgba(113, 180, 255, 0.14) var(--angle) 360deg);
+  background: conic-gradient(var(--donut-color) 0deg, var(--donut-color) var(--angle), var(--ring-track) var(--angle) 360deg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .donut-inner {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #071A3A;
-  color: #FFFFFF;
+  background: var(--surface);
+  color: var(--text-strong);
   font-size: 14px;
   font-weight: 800;
-  border: 1px solid rgba(113, 180, 255, 0.22);
+  border: 1px solid var(--border);
 }
 
 .donut-label {
-  color: #D9E8FF;
+  color: var(--text-base);
   font-size: 11px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
 }
 
 .bar-row {
   display: grid;
-  grid-template-columns: 150px 1fr 44px;
+  grid-template-columns: 156px 1fr 48px;
   gap: 14px;
   align-items: center;
   margin: 12px 0;
 }
 
 .bar-label {
-  color: #D9E8FF;
+  color: var(--text-base);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .bar-track {
-  height: 10px;
+  height: 9px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(113, 180, 255, 0.14);
+  background: var(--track);
 }
 
 .bar-track.lower {
@@ -397,17 +546,18 @@ div[data-testid="stButton"] button[kind="primary"] {
 .bar-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--blue), var(--cyan));
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
 }
 
 .bar-fill.population {
-  background: linear-gradient(90deg, var(--purple), var(--cyan));
-  opacity: 0.62;
+  background: linear-gradient(90deg, var(--secondary-500), var(--secondary-300));
+  opacity: 0.72;
 }
 
 .bar-value {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
+  font-weight: 700;
   text-align: right;
 }
 
@@ -415,33 +565,91 @@ div[data-testid="stButton"] button[kind="primary"] {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .summary-tile {
-  padding: 9px 10px;
-  border-radius: 12px;
-  background: rgba(5, 18, 43, 0.54);
-  border: 1px solid rgba(113, 180, 255, 0.16);
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
 }
 
 .summary-tile-label {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .summary-tile-value {
-  color: #FFFFFF;
-  font-size: 17px;
+  color: var(--text-strong);
+  font-size: 16px;
   font-weight: 800;
-  margin-top: 5px;
+  margin-top: 3px;
 }
 
-div[data-testid="stDataFrame"] {
-  border: 1px solid rgba(113, 180, 255, 0.18);
-  border-radius: 12px;
-  overflow: hidden;
+.action-table-wrap {
+  max-height: 296px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.action-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text-base);
+}
+
+.action-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 42px;
+  padding: 0 14px;
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 800;
+  text-align: left;
+}
+
+.action-table tbody td {
+  height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-base);
+  font-weight: 600;
+}
+
+.action-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.action-table tbody tr:hover td {
+  background: var(--surface-muted);
+}
+
+.member-cell {
+  color: var(--primary-700) !important;
+  font-weight: 800 !important;
+}
+
+.numeric {
+  text-align: right !important;
+}
+
+.score-cell {
+  color: var(--primary-600) !important;
+  font-weight: 800 !important;
+}
+
+.empty-row {
+  height: 96px !important;
+  text-align: center !important;
+  color: var(--text-muted) !important;
 }
 </style>
 """
@@ -465,51 +673,21 @@ remaining_budget = max(float(st.session_state.budget) - used_budget, 0)
 
 st.html(CSS)
 
-top_cols = st.columns([1.05, 1, 1, 1], gap="large")
-with top_cols[0]:
-    st.html(
-        """
-        <div class="card logo-card top-card">
-          <div class="brand-mark"></div>
-          <div class="brand-text">Member AI</div>
-        </div>
-        """
-    )
-with top_cols[1]:
-    st.html(
-        f"""
-        <div class="card metric-card top-card">
-          <div class="metric-label">Decision Score</div>
-          <div class="metric-value">{member["decision_score"]:.2f}</div>
-          <div class="metric-note">Data source: Layer 1 scoring output.</div>
-        </div>
-        """
-    )
-with top_cols[2]:
-    st.html(
-        f"""
-        <div class="card metric-card top-card">
-          <div class="metric-label">Customer Segment</div>
-          <div class="cluster-pill" style="--segment-color:{segment_color};">{member["cluster"]}</div>
-          <div class="metric-note">Data source: Layer 2 clustering output.</div>
-        </div>
-        """
-    )
-with top_cols[3]:
-    st.html(
-        f"""
-        <div class="card metric-card top-card">
-          <div class="metric-label">Cost for this customer</div>
-          <div class="metric-value">${member["cost"]:.0f}</div>
-          <div class="metric-note">Fixed cost from the member's cluster group.</div>
-        </div>
-        """
-    )
+left_col, main_col = st.columns([0.86, 3.14], gap="large")
 
-st.html('<div style="height: 18px;"></div>')
-
-inspect_cols = st.columns([1.28, 1.28, 2.55], gap="large")
-with inspect_cols[0]:
+with left_col:
+    st.html(
+        """
+        <div class="card brand-card">
+          <div class="brand-row">
+            <div class="brand-mark"></div>
+            <div class="brand-text">Member AI</div>
+          </div>
+          <p class="brand-subtitle">Personalized reward decision engine.</p>
+        </div>
+        """
+    )
+    st.html('<div style="height: 16px;"></div>')
     with st.container(border=True):
         st.html(
             """
@@ -519,41 +697,17 @@ with inspect_cols[0]:
         )
         st.text_input("Member ID", key="member_id", placeholder=DEFAULT_MEMBER)
         st.button("Search", type="primary")
+        st.html(
+            f"""
+            <div class="lookup-status">{"Matched selected member" if matched else "Using demo fallback member"}</div>
+            """
+        )
 
-with inspect_cols[1]:
-    st.html(
-        f"""
-        <div class="card detail-card inspect-card">
-          <div class="card-title">Detail Score</div>
-          <p class="card-copy">Uplift score, p-control, and p-treat from Layer 2.</p>
-          <div class="donut-grid">
-            {donut("Uplift", member["uplift_score"], "#33E0A1")}
-            {donut("P-Control", member["p_control"], "#39D2FF")}
-            {donut("P-Treat", member["p_treat"], "#8B6CFF")}
-          </div>
-        </div>
-        """
-    )
-
-with inspect_cols[2]:
-    st.html(
-        f"""
-        <div class="card compare-card inspect-card">
-          <div class="card-title">Member vs Population Average</div>
-          <p class="card-copy">Top bar: selected member. Lower bar: population average.</p>
-          {bar_rows(member)}
-        </div>
-        """
-    )
-
-st.html('<div style="height: 18px;"></div>')
-
-action_cols = st.columns([1.28, 3.95], gap="large")
-with action_cols[0]:
+    st.html('<div style="height: 16px;"></div>')
     with st.container(border=True):
         st.html(
             """
-            <div class="widget-title">Customize Column</div>
+            <div class="widget-title">Campaign Controls</div>
             <p class="widget-copy">Set the campaign budget and choose eligible clusters.</p>
             """
         )
@@ -584,29 +738,90 @@ with action_cols[0]:
             """
         )
 
-with action_cols[1]:
-    table = selected_actions[["member_id", "cluster", "cost", "decision_score"]].rename(
-        columns={
-            "member_id": "Customer ID",
-            "cluster": "Cluster",
-            "cost": "Cost",
-            "decision_score": "Decision Score",
-        }
-    )
-    with st.container(border=True):
+with main_col:
+    top_cols = st.columns(3, gap="large")
+    with top_cols[0]:
         st.html(
-            """
-            <div class="widget-title">Customer Action List</div>
-            <p class="widget-copy">Customers are sorted by decision score and included until cumulative cost reaches the selected budget.</p>
+            f"""
+            <div class="card metric-card top-card">
+              <div class="metric-label">Decision Score</div>
+              <div class="metric-value">{member["decision_score"]:.2f}</div>
+              <div class="metric-note">Data source: Layer 1 scoring output.</div>
+            </div>
             """
         )
-        st.dataframe(
-            table,
-            hide_index=True,
-            use_container_width=True,
-            height=260,
-            column_config={
-                "Cost": st.column_config.NumberColumn("Cost", format="$%.0f"),
-                "Decision Score": st.column_config.NumberColumn("Decision Score", format="%.2f"),
-            },
+    with top_cols[1]:
+        st.html(
+            f"""
+            <div class="card metric-card top-card">
+              <div class="metric-label">Customer Segment</div>
+              <div class="cluster-pill" style="--segment-color:{segment_color};">{member["cluster"]}</div>
+              <div class="metric-note">Data source: Layer 2 clustering output.</div>
+            </div>
+            """
+        )
+    with top_cols[2]:
+        st.html(
+            f"""
+            <div class="card metric-card top-card">
+              <div class="metric-label">Cost for this customer</div>
+              <div class="metric-value">${member["cost"]:.0f}</div>
+              <div class="metric-note">Fixed cost from the member's cluster group.</div>
+            </div>
+            """
+        )
+
+    st.html('<div style="height: 20px;"></div>')
+
+    inspect_cols = st.columns([1, 2], gap="large")
+    with inspect_cols[0]:
+        st.html(
+            f"""
+            <div class="card detail-card inspect-card">
+              <div class="card-title">Detail Score</div>
+              <p class="card-copy">Uplift score, p-control, and p-treat from Layer 2.</p>
+              <div class="donut-grid">
+                {donut("Uplift", member["uplift_score"], "#00754A")}
+                {donut("P-Control", member["p_control"], "#38BDF8")}
+                {donut("P-Treat", member["p_treat"], "#7C6FF6")}
+              </div>
+            </div>
+            """
+        )
+
+    with inspect_cols[1]:
+        st.html(
+            f"""
+            <div class="card compare-card inspect-card">
+              <div class="card-title">Member vs Population Average</div>
+              <p class="card-copy">Top bar: selected member. Lower bar: population average.</p>
+              {bar_rows(member)}
+            </div>
+            """
+        )
+
+    st.html('<div style="height: 20px;"></div>')
+
+    table_rows = action_table_rows(selected_actions)
+    with st.container(border=True):
+        st.html(
+            f"""
+            <div class="widget-title">Customer Action List</div>
+            <p class="widget-copy">Customers are sorted by decision score and included until cumulative cost reaches the selected budget.</p>
+            <div class="action-table-wrap">
+              <table class="action-table">
+                <thead>
+                  <tr>
+                    <th>Customer ID</th>
+                    <th>Cluster</th>
+                    <th class="numeric">Cost</th>
+                    <th class="numeric">Decision Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {table_rows}
+                </tbody>
+              </table>
+            </div>
+            """
         )
