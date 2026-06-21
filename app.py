@@ -374,29 +374,17 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
   margin: 0 0 14px;
 }
 
-.lookup-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  margin-top: 12px;
-  padding: 0 10px;
-  border-radius: 999px;
-  color: var(--primary-700);
-  background: var(--primary-50);
-  border: 1px solid var(--primary-100);
-  font-size: 11px;
-  font-weight: 800;
-}
-
 div[data-testid="stTextInput"],
 div[data-testid="stNumberInput"],
-div[data-testid="stMultiSelect"] {
+div[data-testid="stMultiSelect"],
+div[data-testid="stCheckbox"] {
   width: 100% !important;
 }
 
 div[data-testid="stTextInput"] label,
 div[data-testid="stNumberInput"] label,
-div[data-testid="stMultiSelect"] label {
+div[data-testid="stMultiSelect"] label,
+div[data-testid="stCheckbox"] label {
   color: var(--text-base) !important;
   font-size: 12px !important;
   font-weight: 700 !important;
@@ -469,6 +457,72 @@ div[data-testid="stNumberInput"] button {
   background: var(--surface-strong) !important;
   border-left: 1px solid var(--border) !important;
   color: var(--primary-700) !important;
+}
+
+.eligible-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 8px;
+}
+
+.eligible-title {
+  color: var(--text-base);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.eligible-count {
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--primary-700);
+  background: var(--primary-50);
+  border: 1px solid var(--primary-100);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+div[data-testid="stCheckbox"] {
+  min-height: 26px !important;
+  margin: 0 !important;
+}
+
+div[data-testid="stCheckbox"] label {
+  min-height: 26px !important;
+  padding: 2px 0 !important;
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+div[data-testid="stCheckbox"] label > div:first-child {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+div[data-testid="stCheckbox"] p {
+  color: var(--text-base) !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  line-height: 1.15 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+div[data-testid="stCheckbox"] svg {
+  color: #FFFFFF !important;
+}
+
+div[data-testid="stCheckbox"] label > span:first-of-type {
+  background-color: var(--surface-muted) !important;
+  border: 1px solid var(--border-strong) !important;
+}
+
+div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
+  background-color: var(--primary-600) !important;
+  border-color: var(--primary-600) !important;
 }
 
 .donut-grid {
@@ -589,7 +643,8 @@ div[data-testid="stNumberInput"] button {
 }
 
 .action-table-wrap {
-  max-height: 296px;
+  height: 380px;
+  max-height: 380px;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -617,7 +672,7 @@ div[data-testid="stNumberInput"] button {
 }
 
 .action-table tbody td {
-  height: 44px;
+  height: 48px;
   padding: 0 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text-base);
@@ -660,7 +715,18 @@ segments = list(SEGMENT_COLORS.keys())
 
 st.session_state.setdefault("member_id", DEFAULT_MEMBER)
 st.session_state.setdefault("budget", 45.0)
-st.session_state.setdefault("eligible_segments", [segments[0], segments[1], segments[2]])
+st.session_state.setdefault("eligible_segments", segments[:4])
+for index, segment in enumerate(segments):
+    st.session_state.setdefault(
+        f"eligible_cluster_{index}",
+        segment in st.session_state.eligible_segments,
+    )
+
+st.session_state.eligible_segments = [
+    segment
+    for index, segment in enumerate(segments)
+    if st.session_state.get(f"eligible_cluster_{index}", False)
+]
 
 member, matched = find_member(customers, st.session_state.member_id)
 segment_color = SEGMENT_COLORS.get(member["cluster"], "#33E0A1")
@@ -687,7 +753,7 @@ with left_col:
         </div>
         """
     )
-    st.html('<div style="height: 16px;"></div>')
+    st.html('<div style="height: 14px;"></div>')
     with st.container(border=True):
         st.html(
             """
@@ -697,13 +763,8 @@ with left_col:
         )
         st.text_input("Member ID", key="member_id", placeholder=DEFAULT_MEMBER)
         st.button("Search", type="primary")
-        st.html(
-            f"""
-            <div class="lookup-status">{"Matched selected member" if matched else "Using demo fallback member"}</div>
-            """
-        )
 
-    st.html('<div style="height: 16px;"></div>')
+    st.html('<div style="height: 10px;"></div>')
     with st.container(border=True):
         st.html(
             """
@@ -712,7 +773,16 @@ with left_col:
             """
         )
         st.number_input("Budget", min_value=0.0, max_value=500.0, step=5.0, key="budget")
-        st.multiselect("Eligible filter", options=segments, key="eligible_segments")
+        st.html(
+            f"""
+            <div class="eligible-head">
+              <div class="eligible-title">Eligible clusters</div>
+              <div class="eligible-count">{len(st.session_state.eligible_segments)} selected</div>
+            </div>
+            """
+        )
+        for index, segment in enumerate(segments):
+            st.checkbox(segment, key=f"eligible_cluster_{index}")
         st.html(
             f"""
             <div class="budget-summary">

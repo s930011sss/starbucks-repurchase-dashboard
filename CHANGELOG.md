@@ -12,6 +12,9 @@
 - Updated Streamlit multiselect chips, number controls, and app chrome selectors so selected states and hidden controls follow the new green/neutral design system.
 - Reduced the dashboard shell margin and padding so the left-side control rail fits cleanly in the 1440 x 960 desktop viewport.
 - Tightened left-rail brand height, spacing, selected-filter chips, and budget summary tiles to preserve bottom spacing in the desktop canvas.
+- Replaced the `Eligible filter` multiselect with a fixed checklist and selected-count badge so choosing more clusters no longer expands the left rail.
+- Set the demo's default eligible cluster selection to four clusters to match the checklist presentation example.
+- Removed the member lookup status badge, moved `Campaign Controls` upward, and increased the customer action table height so both sides fit more comfortably within the desktop canvas.
 
 ### Earlier Layout Refinement
 
