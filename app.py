@@ -13,20 +13,36 @@ st.set_page_config(
 )
 
 
-DATA_PATH = Path(__file__).with_name("demo_customers.csv")
-DEFAULT_MEMBER = "M-10482"
+DATA_PATH = Path(__file__).with_name("dashboard_customers.csv")
+DEMO_MEMBER = "M-10482"
 SEGMENT_COLORS = {
-    "The regulars who live in the rewards app": "#00754A",
-    "High value weekend explorers": "#00754A",
-    "Discount-sensitive deal seekers": "#00754A",
-    "Quiet members at risk": "#00754A",
-    "New members needing a nudge": "#00754A",
+    "High-Value Responsive": "#00754A",
+    "Frequent Light Buyers": "#00754A",
+    "Dormant Value Customers": "#00754A",
+    "Low-Value Low-Response": "#00754A",
+    "Thin-History Low-Activity": "#00754A",
+    "Not clustered - no transactions": "#00754A",
+}
+REQUIRED_COLUMNS = {
+    "member_id",
+    "cluster",
+    "cost",
+    "decision_score",
+    "uplift_score",
+    "p_control",
+    "p_treat",
+    "reward_app_activity",
+    "population_fit",
 }
 
 
 @st.cache_data
 def load_customer_data():
     frame = pd.read_csv(DATA_PATH)
+    missing = REQUIRED_COLUMNS.difference(frame.columns)
+    if missing:
+        missing_list = ", ".join(sorted(missing))
+        raise ValueError(f"{DATA_PATH.name} is missing required columns: {missing_list}")
     frame["member_id"] = frame["member_id"].str.upper()
     return frame
 
@@ -39,7 +55,7 @@ def find_member(frame, member_id):
     normalized = member_id.strip().upper()
     matched = frame.loc[frame["member_id"].eq(normalized)]
     if matched.empty:
-        return frame.loc[frame["member_id"].eq(DEFAULT_MEMBER)].iloc[0], False
+        return frame.iloc[0], False
     return matched.iloc[0], True
 
 
@@ -141,9 +157,7 @@ CSS = """
   --accent-warning: #D9902F;
   --accent-danger: #D94A3A;
 
-  --page-bg: radial-gradient(circle at 7% 8%, rgba(0, 117, 74, 0.13), transparent 28%),
-             radial-gradient(circle at 92% 10%, rgba(45, 156, 219, 0.12), transparent 30%),
-             linear-gradient(135deg, #F7FAF7 0%, #EEF4F0 100%);
+  --page-bg: #fbfaf5;
   --shell: rgba(255, 255, 255, 0.86);
   --shell-border: rgba(227, 232, 228, 0.92);
   --surface: #FFFFFF;
@@ -711,11 +725,19 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
 
 
 customers = load_customer_data()
-segments = list(SEGMENT_COLORS.keys())
+segments = customers["cluster"].dropna().drop_duplicates().tolist()
+default_member = DEMO_MEMBER if customers["member_id"].eq(DEMO_MEMBER).any() else customers.iloc[0]["member_id"]
 
-st.session_state.setdefault("member_id", DEFAULT_MEMBER)
+if "member_id" not in st.session_state:
+    st.session_state.member_id = default_member
+elif not customers["member_id"].eq(st.session_state.member_id.strip().upper()).any():
+    st.session_state.member_id = default_member
+
 st.session_state.setdefault("budget", 45.0)
 st.session_state.setdefault("eligible_segments", segments[:4])
+if not set(st.session_state.eligible_segments).intersection(segments):
+    st.session_state.eligible_segments = segments[:4]
+
 for index, segment in enumerate(segments):
     st.session_state.setdefault(
         f"eligible_cluster_{index}",
@@ -747,7 +769,7 @@ with left_col:
         <div class="card brand-card">
           <div class="brand-row">
             <div class="brand-mark"></div>
-            <div class="brand-text">Member AI</div>
+            <div class="brand-text">Starbucks ML</div>
           </div>
           <p class="brand-subtitle">Personalized reward decision engine.</p>
         </div>
@@ -761,7 +783,7 @@ with left_col:
             <p class="widget-copy">Search a member from the CSV-backed demo data.</p>
             """
         )
-        st.text_input("Member ID", key="member_id", placeholder=DEFAULT_MEMBER)
+        st.text_input("Member ID", key="member_id", placeholder=default_member)
         st.button("Search", type="primary")
 
     st.html('<div style="height: 10px;"></div>')
@@ -814,9 +836,8 @@ with main_col:
         st.html(
             f"""
             <div class="card metric-card top-card">
-              <div class="metric-label">Decision Score</div>
+              <div class="card-title">Decision Score</div>
               <div class="metric-value">{member["decision_score"]:.2f}</div>
-              <div class="metric-note">Data source: Layer 1 scoring output.</div>
             </div>
             """
         )
@@ -824,9 +845,8 @@ with main_col:
         st.html(
             f"""
             <div class="card metric-card top-card">
-              <div class="metric-label">Customer Segment</div>
+              <div class="card-title">Customer Segment</div>
               <div class="cluster-pill" style="--segment-color:{segment_color};">{member["cluster"]}</div>
-              <div class="metric-note">Data source: Layer 2 clustering output.</div>
             </div>
             """
         )
@@ -834,7 +854,7 @@ with main_col:
         st.html(
             f"""
             <div class="card metric-card top-card">
-              <div class="metric-label">Cost for this customer</div>
+              <div class="card-title">Cost for this customer</div>
               <div class="metric-value">${member["cost"]:.0f}</div>
               <div class="metric-note">Fixed cost from the member's cluster group.</div>
             </div>
@@ -849,7 +869,6 @@ with main_col:
             f"""
             <div class="card detail-card inspect-card">
               <div class="card-title">Detail Score</div>
-              <p class="card-copy">Uplift score, p-control, and p-treat from Layer 2.</p>
               <div class="donut-grid">
                 {donut("Uplift", member["uplift_score"], "#00754A")}
                 {donut("P-Control", member["p_control"], "#38BDF8")}

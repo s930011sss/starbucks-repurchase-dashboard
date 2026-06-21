@@ -15,6 +15,10 @@
 - Replaced the `Eligible filter` multiselect with a fixed checklist and selected-count badge so choosing more clusters no longer expands the left rail.
 - Set the demo's default eligible cluster selection to four clusters to match the checklist presentation example.
 - Removed the member lookup status badge, moved `Campaign Controls` upward, and increased the customer action table height so both sides fit more comfortably within the desktop canvas.
+- Updated the default dashboard canvas background color to `#fbfaf5`.
+- Added `prepare_dashboard_data.py` to merge `customer_segments.xlsx` and `Layer1_customer_uplift_scores.xlsx` into a dashboard-ready `dashboard_customers.csv`.
+- Added Excel-to-dashboard feature mapping for cluster-based cost, value-based decision scoring, reward activity proxy, and population fit proxy.
+- Updated the dashboard data loading logic to validate required CSV columns, derive eligible clusters from the active dataset, and fall back to the first available member when the old demo member ID is not present.
 
 ### Earlier Layout Refinement
 
