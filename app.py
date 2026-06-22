@@ -20,8 +20,7 @@ SEGMENT_COLORS = {
     "Frequent Light Buyers": "#00754A",
     "Dormant Value Customers": "#00754A",
     "Low-Value Low-Response": "#00754A",
-    "Thin-History Low-Activity": "#00754A",
-    "Not clustered - no transactions": "#00754A",
+    "Thin-History Low-Activity": "#00754A"
 }
 SEGMENT_PROFILE_COPY = [
     "These are the program's best customers and they know it. They spend more than double the average (~$233), come in around a dozen times, and fill a full basket (~$21) every visit -- and they redeem almost every offer they get (93%, the highest of any group). Picture the daily commuter who orders the same large oat-milk latte and a pastry and always taps for stars. They clearly love the rewards, but they would keep coming with or without a coupon -- so a voucher here is a thank-you, not a reason to buy.",
@@ -106,7 +105,11 @@ def build_action_list(frame, budget, eligible_segments):
     if not eligible_segments:
         return frame.head(0).copy(), 0.0
 
-    eligible = frame.loc[frame["cluster"].isin(eligible_segments)].copy()
+    eligible = frame.loc[
+        frame["cluster"].isin(eligible_segments)
+        & frame["cluster"].ne("Not clustered - no transactions")
+        & frame["uplift_score"].ge(0)
+    ].copy()
     eligible = eligible.sort_values(["decision_score", "uplift_score"], ascending=False)
     eligible["cumulative_cost"] = eligible["cost"].cumsum()
     selected = eligible.loc[eligible["cumulative_cost"].le(budget)].copy()
@@ -754,7 +757,15 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
 
 
 customers = load_customer_data()
-segments = customers["cluster"].dropna().drop_duplicates().tolist()
+segments = (
+    customers.loc[
+        customers["cluster"].ne("Not clustered - no transactions"),
+        "cluster"
+    ]
+    .dropna()
+    .drop_duplicates()
+    .tolist()
+)
 default_member = DEMO_MEMBER if customers["member_id"].eq(DEMO_MEMBER).any() else customers.iloc[0]["member_id"]
 
 if "member_id" not in st.session_state:
@@ -810,7 +821,7 @@ with left_col:
         st.html(
             """
             <div class="widget-title">Member ID Input</div>
-            <p class="widget-copy">Search a member from the CSV-backed demo data.</p>
+            <p class="widget-copy">Search a member from the our trained model</p>
             """
         )
         st.text_input("Member ID", key="member_id", placeholder=default_member)

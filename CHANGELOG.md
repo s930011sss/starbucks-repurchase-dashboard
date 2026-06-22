@@ -21,6 +21,7 @@
 - Updated the dashboard data loading logic to validate required CSV columns, derive eligible clusters from the active dataset, and fall back to the first available member when the old demo member ID is not present.
 - Replaced the `Member vs Population Average` bar chart content with segment-specific narrative profile copy mapped by the active dataset's segment order, with fallback copy for unmapped segments.
 - Made the segment narrative copy scroll within its card so longer profiles remain readable without changing the dashboard layout.
+- Added default customer action list filters to exclude `Not clustered - no transactions` members and customers with negative uplift scores.
 
 ### Earlier Layout Refinement
 
