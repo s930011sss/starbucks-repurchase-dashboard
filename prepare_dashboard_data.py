@@ -6,14 +6,14 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent
 SEGMENTS_PATH = BASE_DIR / "customer_segments.xlsx"
 UPLIFT_PATH = BASE_DIR / "Layer1_customer_uplift_scores.xlsx"
-OUTPUT_PATH = BASE_DIR / "dashboard_customers.csv"
+OUTPUT_PATH = BASE_DIR / "dashboard_customers_1.csv"
 
 COST_BY_CLUSTER = {
-    "High-Value Responsive": 5,
-    "Frequent Light Buyers": 5,
-    "Dormant Value Customers": 8,
-    "Low-Value Low-Response": 4,
-    "Thin-History Low-Activity": 3,
+    "High-Value Responsive": 3.5,
+    "Frequent Light Buyers": 2.5,
+    "Dormant Value Customers": 4.0,
+    "Low-Value Low-Response": 0.0,
+    "Thin-History Low-Activity": 1.0,
     "Not clustered - no transactions": 0,
 }
 DEFAULT_COST = 5
