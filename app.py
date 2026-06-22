@@ -23,6 +23,13 @@ SEGMENT_COLORS = {
     "Thin-History Low-Activity": "#00754A",
     "Not clustered - no transactions": "#00754A",
 }
+SEGMENT_PROFILE_COPY = [
+    "These are the program's best customers and they know it. They spend more than double the average (~$233), come in around a dozen times, and fill a full basket (~$21) every visit -- and they redeem almost every offer they get (93%, the highest of any group). Picture the daily commuter who orders the same large oat-milk latte and a pastry and always taps for stars. They clearly love the rewards, but they would keep coming with or without a coupon -- so a voucher here is a thank-you, not a reason to buy.",
+    "When these customers show up they spend big -- the largest basket of all five groups (~$22) and a healthy total (~$112) -- and they happily use offers (74% completion). The catch is they've gone quiet: only ~5 visits, and the longest time-since-last-purchase of any active group. Think of the person who used to grab coffee for the whole office every Friday but has drifted off lately. High value, fading activity -- exactly the profile worth a win-back nudge before they're gone for good.",
+    "This is the habit crowd: they visit the most of anyone -- about 14 times, like clockwork, with the shortest gap between trips -- but each visit is tiny (~$4, a single small drink). Their total stays modest (~$56) only because the basket never grows. Picture the student who pops in daily for a plain drip coffee. They already love the routine and lean toward discounts over BOGO, so the whole opportunity is simply nudging them to add one more item.",
+    "We barely know these customers -- roughly two purchases ever, a long time ago, with enormous gaps between visits (the lowest frequency and longest recency by far). They're closer to strangers than regulars. But one detail stands out: when they do buy, the basket is decent (~$12, bigger than the frequent crowd). Picture someone who tried Starbucks a couple of times months ago and drifted away. Worth a small, cheap test to see if there's a real customer hiding there.",
+]
+FALLBACK_SEGMENT_PROFILE = "This segment does not have a narrative profile yet. Use the score, offer behavior, and action-list ranking as the primary decision signals for now."
 REQUIRED_COLUMNS = {
     "member_id",
     "cluster",
@@ -104,6 +111,16 @@ def build_action_list(frame, budget, eligible_segments):
     eligible["cumulative_cost"] = eligible["cost"].cumsum()
     selected = eligible.loc[eligible["cumulative_cost"].le(budget)].copy()
     return selected, float(selected["cost"].sum()) if not selected.empty else 0.0
+
+
+def segment_profile_copy(cluster, segment_order):
+    try:
+        index = segment_order.index(cluster)
+    except ValueError:
+        return FALLBACK_SEGMENT_PROFILE
+    if index >= len(SEGMENT_PROFILE_COPY):
+        return FALLBACK_SEGMENT_PROFILE
+    return SEGMENT_PROFILE_COPY[index]
 
 
 def action_table_rows(frame):
@@ -629,6 +646,18 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
   text-align: right;
 }
 
+.segment-profile-copy {
+  margin: 14px 0 0;
+  color: var(--text-base);
+  font-size: 12px;
+  font-weight: 520;
+  line-height: 1.5;
+  max-width: 94%;
+  max-height: 122px;
+  overflow: auto;
+  padding-right: 8px;
+}
+
 .budget-summary {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -752,6 +781,7 @@ st.session_state.eligible_segments = [
 
 member, matched = find_member(customers, st.session_state.member_id)
 segment_color = SEGMENT_COLORS.get(member["cluster"], "#33E0A1")
+profile_copy = segment_profile_copy(member["cluster"], segments)
 selected_actions, used_budget = build_action_list(
     customers,
     float(st.session_state.budget),
@@ -794,7 +824,7 @@ with left_col:
             <p class="widget-copy">Set the campaign budget and choose eligible clusters.</p>
             """
         )
-        st.number_input("Budget", min_value=0.0, max_value=500.0, step=5.0, key="budget")
+        st.number_input("Budget", min_value=0.0, max_value=5000.0, step=5.0, key="budget")
         st.html(
             f"""
             <div class="eligible-head">
@@ -882,9 +912,9 @@ with main_col:
         st.html(
             f"""
             <div class="card compare-card inspect-card">
-              <div class="card-title">Member vs Population Average</div>
-              <p class="card-copy">Top bar: selected member. Lower bar: population average.</p>
-              {bar_rows(member)}
+              <div class="card-title">Customer Segment Profile</div>
+              <div class="cluster-pill" style="--segment-color:{segment_color};">{escape(str(member["cluster"]))}</div>
+              <p class="segment-profile-copy">{escape(profile_copy)}</p>
             </div>
             """
         )

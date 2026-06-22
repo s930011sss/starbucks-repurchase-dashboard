@@ -19,6 +19,8 @@
 - Added `prepare_dashboard_data.py` to merge `customer_segments.xlsx` and `Layer1_customer_uplift_scores.xlsx` into a dashboard-ready `dashboard_customers.csv`.
 - Added Excel-to-dashboard feature mapping for cluster-based cost, value-based decision scoring, reward activity proxy, and population fit proxy.
 - Updated the dashboard data loading logic to validate required CSV columns, derive eligible clusters from the active dataset, and fall back to the first available member when the old demo member ID is not present.
+- Replaced the `Member vs Population Average` bar chart content with segment-specific narrative profile copy mapped by the active dataset's segment order, with fallback copy for unmapped segments.
+- Made the segment narrative copy scroll within its card so longer profiles remain readable without changing the dashboard layout.
 
 ### Earlier Layout Refinement
 
