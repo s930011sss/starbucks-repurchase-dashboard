@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 
-DATA_PATH = Path(__file__).with_name("dashboard_customers.csv")
+DATA_PATH = Path(__file__).with_name("dashboard_customers_1.csv")
 DEMO_MEMBER = "M-10482"
 SEGMENT_COLORS = {
     "High-Value Responsive": "#00754A",
@@ -22,12 +22,13 @@ SEGMENT_COLORS = {
     "Low-Value Low-Response": "#00754A",
     "Thin-History Low-Activity": "#00754A"
 }
-SEGMENT_PROFILE_COPY = [
-    "These are the program's best customers and they know it. They spend more than double the average (~$233), come in around a dozen times, and fill a full basket (~$21) every visit -- and they redeem almost every offer they get (93%, the highest of any group). Picture the daily commuter who orders the same large oat-milk latte and a pastry and always taps for stars. They clearly love the rewards, but they would keep coming with or without a coupon -- so a voucher here is a thank-you, not a reason to buy.",
-    "When these customers show up they spend big -- the largest basket of all five groups (~$22) and a healthy total (~$112) -- and they happily use offers (74% completion). The catch is they've gone quiet: only ~5 visits, and the longest time-since-last-purchase of any active group. Think of the person who used to grab coffee for the whole office every Friday but has drifted off lately. High value, fading activity -- exactly the profile worth a win-back nudge before they're gone for good.",
-    "This is the habit crowd: they visit the most of anyone -- about 14 times, like clockwork, with the shortest gap between trips -- but each visit is tiny (~$4, a single small drink). Their total stays modest (~$56) only because the basket never grows. Picture the student who pops in daily for a plain drip coffee. They already love the routine and lean toward discounts over BOGO, so the whole opportunity is simply nudging them to add one more item.",
-    "We barely know these customers -- roughly two purchases ever, a long time ago, with enormous gaps between visits (the lowest frequency and longest recency by far). They're closer to strangers than regulars. But one detail stands out: when they do buy, the basket is decent (~$12, bigger than the frequent crowd). Picture someone who tried Starbucks a couple of times months ago and drifted away. Worth a small, cheap test to see if there's a real customer hiding there.",
-]
+SEGMENT_PROFILE_COPY = {
+    "High-Value Responsive": "These are the program's best customers and they know it. They spend more than double the average (~$233), come in around a dozen times, and fill a full basket (~$21) every visit -- and they redeem almost every offer they get (93%, the highest of any group). Picture the daily commuter who orders the same large oat-milk latte and a pastry and always taps for stars. They clearly love the rewards, but they would keep coming with or without a coupon -- so a voucher here is a thank-you, not a reason to buy.",
+    "Frequent Light Buyers": "This is the habit crowd: they visit the most of anyone -- about 14 times, like clockwork, with the shortest gap between trips -- but each visit is tiny (~$4, a single small drink). Their total stays modest (~$56) only because the basket never grows. Picture the student who pops in daily for a plain drip coffee. They already love the routine and lean toward discounts over BOGO, so the whole opportunity is simply nudging them to add one more item.",
+    "Dormant Value Customers": "When these customers show up they spend big — the largest basket of all five groups (~$22) and a healthy total (~$112) — and they happily use offers (74% completion). The catch is they've gone quiet: only ~5 visits, and the longest time-since-last-purchase of any active group. Think of the person who used to grab coffee for the whole office every Friday but has drifted off lately. High value, fading activity — exactly the profile worth a win-back nudge before they're gone for good.",
+    "Low-Value Low-Response": "We barely know these customers -- roughly two purchases ever, a long time ago, with enormous gaps between visits (the lowest frequency and longest recency by far). They're closer to strangers than regulars. But one detail stands out: when they do buy, the basket is decent (~$12, bigger than the frequent crowd). Picture someone who tried Starbucks a couple of times months ago and drifted away. Worth a small, cheap test to see if there's a real customer hiding there.",
+    "Thin-History Low-Activity": "These customers drop in occasionally (~6 times) but spend almost nothing — the smallest basket ($3) and lowest total ($17) — and they essentially ignore offers (11% completion, the lowest of all). Picture the passer-by who grabs a single small black coffee and never looks at a coupon. Sending them vouchers mostly burns budget; a friendly reminder is the only thing that pays off."
+}
 FALLBACK_SEGMENT_PROFILE = "This segment does not have a narrative profile yet. Use the score, offer behavior, and action-list ranking as the primary decision signals for now."
 REQUIRED_COLUMNS = {
     "member_id",
@@ -117,13 +118,7 @@ def build_action_list(frame, budget, eligible_segments):
 
 
 def segment_profile_copy(cluster, segment_order):
-    try:
-        index = segment_order.index(cluster)
-    except ValueError:
-        return FALLBACK_SEGMENT_PROFILE
-    if index >= len(SEGMENT_PROFILE_COPY):
-        return FALLBACK_SEGMENT_PROFILE
-    return SEGMENT_PROFILE_COPY[index]
+    return SEGMENT_PROFILE_COPY.get(cluster, FALLBACK_SEGMENT_PROFILE)
 
 
 def action_table_rows(frame):
@@ -141,7 +136,7 @@ def action_table_rows(frame):
             <tr>
               <td class="member-cell">{escape(row["member_id"])}</td>
               <td>{escape(row["cluster"])}</td>
-              <td class="numeric">${row["cost"]:.0f}</td>
+              <td class="numeric">${row["cost"]:.2f}</td>
               <td class="numeric score-cell">{row["decision_score"]:.2f}</td>
             </tr>
             """
@@ -896,7 +891,7 @@ with main_col:
             f"""
             <div class="card metric-card top-card">
               <div class="card-title">Cost for this customer</div>
-              <div class="metric-value">${member["cost"]:.0f}</div>
+              <div class="metric-value">${member["cost"]:.2f}</div>
               <div class="metric-note">Fixed cost from the member's cluster group.</div>
             </div>
             """
