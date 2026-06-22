@@ -22,6 +22,9 @@ SEGMENT_COLORS = {
     "Low-Value Low-Response": "#00754A",
     "Thin-History Low-Activity": "#00754A"
 }
+SEGMENT_DISPLAY_NAMES = {
+    "Low-Value Low-Response": "Low-Spend Minimalists",
+}
 SEGMENT_PROFILE_COPY = {
     "High-Value Responsive": "These are the program's best customers and they know it. They spend more than double the average (~$233), come in around a dozen times, and fill a full basket (~$21) every visit -- and they redeem almost every offer they get (93%, the highest of any group). Picture the daily commuter who orders the same large oat-milk latte and a pastry and always taps for stars. They clearly love the rewards, but they would keep coming with or without a coupon -- so a voucher here is a thank-you, not a reason to buy.",
     "Frequent Light Buyers": "This is the habit crowd: they visit the most of anyone -- about 14 times, like clockwork, with the shortest gap between trips -- but each visit is tiny (~$4, a single small drink). Their total stays modest (~$56) only because the basket never grows. Picture the student who pops in daily for a plain drip coffee. They already love the routine and lean toward discounts over BOGO, so the whole opportunity is simply nudging them to add one more item.",
@@ -121,6 +124,10 @@ def segment_profile_copy(cluster, segment_order):
     return SEGMENT_PROFILE_COPY.get(cluster, FALLBACK_SEGMENT_PROFILE)
 
 
+def display_segment_name(cluster):
+    return SEGMENT_DISPLAY_NAMES.get(cluster, cluster)
+
+
 def action_table_rows(frame):
     if frame.empty:
         return """
@@ -135,7 +142,7 @@ def action_table_rows(frame):
             f"""
             <tr>
               <td class="member-cell">{escape(row["member_id"])}</td>
-              <td>{escape(row["cluster"])}</td>
+              <td>{escape(display_segment_name(row["cluster"]))}</td>
               <td class="numeric">${row["cost"]:.2f}</td>
               <td class="numeric score-cell">{row["decision_score"]:.2f}</td>
             </tr>
@@ -788,6 +795,7 @@ st.session_state.eligible_segments = [
 member, matched = find_member(customers, st.session_state.member_id)
 segment_color = SEGMENT_COLORS.get(member["cluster"], "#33E0A1")
 profile_copy = segment_profile_copy(member["cluster"], segments)
+member_segment_display = display_segment_name(member["cluster"])
 selected_actions, used_budget = build_action_list(
     customers,
     float(st.session_state.budget),
@@ -840,7 +848,7 @@ with left_col:
             """
         )
         for index, segment in enumerate(segments):
-            st.checkbox(segment, key=f"eligible_cluster_{index}")
+            st.checkbox(display_segment_name(segment), key=f"eligible_cluster_{index}")
         st.html(
             f"""
             <div class="budget-summary">
@@ -882,7 +890,7 @@ with main_col:
             f"""
             <div class="card metric-card top-card">
               <div class="card-title">Customer Segment</div>
-              <div class="cluster-pill" style="--segment-color:{segment_color};">{member["cluster"]}</div>
+              <div class="cluster-pill" style="--segment-color:{segment_color};">{escape(str(member_segment_display))}</div>
             </div>
             """
         )
@@ -919,7 +927,7 @@ with main_col:
             f"""
             <div class="card compare-card inspect-card">
               <div class="card-title">Customer Segment Profile</div>
-              <div class="cluster-pill" style="--segment-color:{segment_color};">{escape(str(member["cluster"]))}</div>
+              <div class="cluster-pill" style="--segment-color:{segment_color};">{escape(str(member_segment_display))}</div>
               <p class="segment-profile-copy">{escape(profile_copy)}</p>
             </div>
             """

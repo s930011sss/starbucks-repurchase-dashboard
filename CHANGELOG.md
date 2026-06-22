@@ -22,6 +22,7 @@
 - Replaced the `Member vs Population Average` bar chart content with segment-specific narrative profile copy mapped by the active dataset's segment order, with fallback copy for unmapped segments.
 - Made the segment narrative copy scroll within its card so longer profiles remain readable without changing the dashboard layout.
 - Added default customer action list filters to exclude `Not clustered - no transactions` members and customers with negative uplift scores.
+- Added a segment display-name mapping so `Low-Value Low-Response` remains the raw data value while the dashboard shows `Low-Spend Minimalists`.
 
 ### Earlier Layout Refinement
 
