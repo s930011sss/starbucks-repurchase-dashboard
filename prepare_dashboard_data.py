@@ -6,7 +6,7 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent
 SEGMENTS_PATH = BASE_DIR / "customer_segments.xlsx"
 UPLIFT_PATH = BASE_DIR / "Layer1_customer_uplift_scores.xlsx"
-OUTPUT_PATH = BASE_DIR / "dashboard_customers_1.csv"
+OUTPUT_PATH = BASE_DIR / "dashboard_customers.csv"
 
 COST_BY_CLUSTER = {
     "High-Value Responsive": 3.5,
@@ -49,8 +49,7 @@ def build_dashboard_data():
             "member_id": merged["person"].astype(str).str.upper(),
             "cluster": merged["cluster_name"].fillna("Not clustered - no transactions"),
             "cost": cost.astype(float),
-            "decision_score": normalize_score(decision_score_raw),
-            "decision_score_raw": decision_score_raw.round(4),
+            "decision_score": decision_score_raw.round(4),
             "value": value.round(4),
             "uplift_score": uplift_score.round(4),
             "p_control": pd.to_numeric(merged["p_control"], errors="coerce").fillna(0).round(4),

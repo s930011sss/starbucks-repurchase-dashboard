@@ -23,6 +23,18 @@
 - Made the segment narrative copy scroll within its card so longer profiles remain readable without changing the dashboard layout.
 - Added default customer action list filters to exclude `Not clustered - no transactions` members and customers with negative uplift scores.
 - Added a segment display-name mapping so `Low-Value Low-Response` remains the raw data value while the dashboard shows `Low-Spend Minimalists`.
+- Replaced the `Source` summary tile with campaign ROI calculated as `(profit - cost) / cost`, where profit is the selected action list's summed `value * uplift_score`.
+- Highlighted the Selected, Used Budget, Remaining, and ROI summary tiles with consistent KPI accent bars and subtle status-tinted backgrounds.
+- Slightly enlarged the four campaign summary tiles and thickened their borders while preserving the two-column control layout.
+- Added row-level ROI to the customer action list and reordered the table columns to `Customer ID`, `Cluster`, `Score`, `Cost`, and `ROI`.
+- Left-aligned all customer action list column headers and added fixed column widths so the table fills the available space more evenly.
+- Center-aligned the customer action list column headers while keeping row-level numeric values right-aligned.
+- Realigned the customer action list with text columns left-aligned, numeric columns right-aligned, refined column widths, and currency formatting for Score values.
+- Added right-side padding to the action list's ROI column so its header and values align more comfortably inside the table edge.
+- Added an explicit eligible-cluster display order: High-Value Responsive, Dormant Value Customers, Frequent Light Buyers, Thin-History Low-Activity, and Low-Spend Minimalists.
+- Updated campaign and row-level ROI to use cluster-based campaign values with CSV `value` as the fallback for unmapped clusters.
+- Replaced the `Remaining` summary tile with campaign expected net profit calculated from the selected action list's summed `decision_score`.
+- Realigned the `Net Profit` summary tile with ROI by calculating both from cluster-based campaign profit minus used budget.
 
 ### Earlier Layout Refinement
 

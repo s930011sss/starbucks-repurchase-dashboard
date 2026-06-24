@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 
-DATA_PATH = Path(__file__).with_name("dashboard_customers_1.csv")
+DATA_PATH = Path(__file__).with_name("dashboard_customers.csv")
 DEMO_MEMBER = "M-10482"
 SEGMENT_COLORS = {
     "High-Value Responsive": "#00754A",
@@ -24,6 +24,20 @@ SEGMENT_COLORS = {
 }
 SEGMENT_DISPLAY_NAMES = {
     "Low-Value Low-Response": "Low-Spend Minimalists",
+}
+SEGMENT_DISPLAY_ORDER = [
+    "High-Value Responsive",
+    "Dormant Value Customers",
+    "Frequent Light Buyers",
+    "Thin-History Low-Activity",
+    "Low-Value Low-Response",
+]
+CAMPAIGN_VALUE_BY_CLUSTER = {
+    "High-Value Responsive": 21.0,
+    "Dormant Value Customers": 22.0,
+    "Frequent Light Buyers": 4.0,
+    "Thin-History Low-Activity": 12.0,
+    "Low-Value Low-Response": 3.0,
 }
 SEGMENT_PROFILE_COPY = {
     "High-Value Responsive": "These are the program's best customers and they know it. They spend more than double the average (~$233), come in around a dozen times, and fill a full basket (~$21) every visit -- and they redeem almost every offer they get (93%, the highest of any group). Picture the daily commuter who orders the same large oat-milk latte and a pastry and always taps for stars. They clearly love the rewards, but they would keep coming with or without a coupon -- so a voucher here is a thank-you, not a reason to buy.",
@@ -38,6 +52,7 @@ REQUIRED_COLUMNS = {
     "cluster",
     "cost",
     "decision_score",
+    "value",
     "uplift_score",
     "p_control",
     "p_treat",
@@ -107,7 +122,10 @@ def bar_rows(member):
 
 def build_action_list(frame, budget, eligible_segments):
     if not eligible_segments:
-        return frame.head(0).copy(), 0.0
+        selected = frame.head(0).copy()
+        selected["campaign_value"] = 0.0
+        selected["roi"] = 0.0
+        return selected, 0.0
 
     eligible = frame.loc[
         frame["cluster"].isin(eligible_segments)
@@ -117,6 +135,17 @@ def build_action_list(frame, budget, eligible_segments):
     eligible = eligible.sort_values(["decision_score", "uplift_score"], ascending=False)
     eligible["cumulative_cost"] = eligible["cost"].cumsum()
     selected = eligible.loc[eligible["cumulative_cost"].le(budget)].copy()
+    selected["campaign_value"] = campaign_value_for_segments(selected)
+    selected["roi"] = 0.0
+    positive_cost = selected["cost"].gt(0)
+    selected.loc[positive_cost, "roi"] = (
+        (
+            selected.loc[positive_cost, "campaign_value"]
+            * selected.loc[positive_cost, "uplift_score"]
+            - selected.loc[positive_cost, "cost"]
+        )
+        / selected.loc[positive_cost, "cost"]
+    )
     return selected, float(selected["cost"].sum()) if not selected.empty else 0.0
 
 
@@ -128,23 +157,31 @@ def display_segment_name(cluster):
     return SEGMENT_DISPLAY_NAMES.get(cluster, cluster)
 
 
+def campaign_value_for_segments(frame):
+    mapped_value = frame["cluster"].map(CAMPAIGN_VALUE_BY_CLUSTER)
+    fallback_value = pd.to_numeric(frame["value"], errors="coerce").fillna(0)
+    return mapped_value.fillna(fallback_value).astype(float)
+
+
 def action_table_rows(frame):
     if frame.empty:
         return """
         <tr>
-          <td colspan="4" class="empty-row">No customers match the current budget and eligibility rules.</td>
+          <td colspan="5" class="empty-row">No customers match the current budget and eligibility rules.</td>
         </tr>
         """
 
     rows = []
     for _, row in frame.iterrows():
+        roi_class = "roi-cell positive" if row["roi"] >= 0 else "roi-cell negative"
         rows.append(
             f"""
             <tr>
               <td class="member-cell">{escape(row["member_id"])}</td>
               <td>{escape(display_segment_name(row["cluster"]))}</td>
+              <td class="numeric score-cell">${row["decision_score"]:.2f}</td>
               <td class="numeric">${row["cost"]:.2f}</td>
-              <td class="numeric score-cell">{row["decision_score"]:.2f}</td>
+              <td class="numeric {roi_class}">{row["roi"] * 100:.2f}%</td>
             </tr>
             """
         )
@@ -671,23 +708,62 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
 }
 
 .summary-tile {
-  padding: 8px;
-  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  min-height: 66px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 15px;
   background: var(--surface-muted);
-  border: 1px solid var(--border);
+  border: 2px solid #004d34;
+}
+
+.summary-tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 0 999px 999px 0;
+  background: var(--tile-accent, var(--primary-600));
+}
+
+.summary-tile.selected {
+  --tile-accent: var(--primary-700);
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--surface) 84%);
+}
+
+.summary-tile.used {
+  --tile-accent: var(--primary-700);
+  background: linear-gradient(135deg, var(--secondary-50) 0%, var(--surface) 84%);
+}
+
+.summary-tile.remaining {
+  --tile-accent: var(--primary-700);
+  background: linear-gradient(135deg, var(--surface-strong) 0%, var(--surface) 84%);
+}
+
+.summary-tile.roi-positive {
+  --tile-accent: var(--primary-700);
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--surface) 84%);
+}
+
+.summary-tile.roi-negative {
+  --tile-accent: var(--accent-danger);
+  background: linear-gradient(135deg, rgba(217, 74, 58, 0.08) 0%, var(--surface) 84%);
 }
 
 .summary-tile-label {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 800;
 }
 
 .summary-tile-value {
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
 .action-table-wrap {
@@ -701,6 +777,7 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
 
 .action-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
   color: var(--text-base);
@@ -719,12 +796,21 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
   text-align: left;
 }
 
+.action-table thead th.numeric {
+  text-align: right !important;
+}
+
 .action-table tbody td {
   height: 48px;
   padding: 0 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text-base);
   font-weight: 600;
+}
+
+.action-table th:last-child,
+.action-table td:last-child {
+  padding-right: 24px;
 }
 
 .action-table tbody tr:last-child td {
@@ -749,6 +835,18 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
   font-weight: 800 !important;
 }
 
+.roi-cell {
+  font-weight: 800 !important;
+}
+
+.roi-cell.positive {
+  color: var(--primary-600) !important;
+}
+
+.roi-cell.negative {
+  color: var(--accent-danger) !important;
+}
+
 .empty-row {
   height: 96px !important;
   text-align: center !important;
@@ -759,7 +857,7 @@ div[data-testid="stCheckbox"] label:has(input:checked) > span:first-of-type {
 
 
 customers = load_customer_data()
-segments = (
+available_segments = (
     customers.loc[
         customers["cluster"].ne("Not clustered - no transactions"),
         "cluster"
@@ -768,6 +866,17 @@ segments = (
     .drop_duplicates()
     .tolist()
 )
+ordered_segments = [
+    segment
+    for segment in SEGMENT_DISPLAY_ORDER
+    if segment in available_segments
+]
+remaining_segments = [
+    segment
+    for segment in available_segments
+    if segment not in SEGMENT_DISPLAY_ORDER
+]
+segments = ordered_segments + remaining_segments
 default_member = DEMO_MEMBER if customers["member_id"].eq(DEMO_MEMBER).any() else customers.iloc[0]["member_id"]
 
 if "member_id" not in st.session_state:
@@ -802,6 +911,13 @@ selected_actions, used_budget = build_action_list(
     st.session_state.eligible_segments,
 )
 remaining_budget = max(float(st.session_state.budget) - used_budget, 0)
+campaign_profit = (
+    pd.to_numeric(selected_actions["campaign_value"], errors="coerce").fillna(0)
+    * pd.to_numeric(selected_actions["uplift_score"], errors="coerce").fillna(0)
+).sum()
+campaign_net_profit = campaign_profit - used_budget
+campaign_roi = (campaign_net_profit / used_budget) if used_budget else 0.0
+roi_tile_class = "roi-positive" if campaign_roi >= 0 else "roi-negative"
 
 st.html(CSS)
 
@@ -852,23 +968,23 @@ with left_col:
         st.html(
             f"""
             <div class="budget-summary">
-              <div class="summary-tile">
+              <div class="summary-tile selected">
                 <div class="summary-tile-label">Selected</div>
                 <div class="summary-tile-value">{len(selected_actions)}</div>
               </div>
-              <div class="summary-tile">
+              <div class="summary-tile used">
                 <div class="summary-tile-label">Used Budget</div>
                 <div class="summary-tile-value">${used_budget:.0f}</div>
               </div>
             </div>
             <div class="budget-summary">
-              <div class="summary-tile">
-                <div class="summary-tile-label">Remaining</div>
-                <div class="summary-tile-value">${remaining_budget:.0f}</div>
+              <div class="summary-tile remaining">
+                <div class="summary-tile-label">Net Profit</div>
+                <div class="summary-tile-value">${campaign_net_profit:.2f}</div>
               </div>
-              <div class="summary-tile">
-                <div class="summary-tile-label">Source</div>
-                <div class="summary-tile-value">CSV</div>
+              <div class="summary-tile {roi_tile_class}">
+                <div class="summary-tile-label">ROI</div>
+                <div class="summary-tile-value">{campaign_roi * 100:.2f}%</div>
               </div>
             </div>
             """
@@ -943,12 +1059,20 @@ with main_col:
             <p class="widget-copy">Customers are sorted by decision score and included until cumulative cost reaches the selected budget.</p>
             <div class="action-table-wrap">
               <table class="action-table">
+                <colgroup>
+                  <col style="width: 37%;">
+                  <col style="width: 30%;">
+                  <col style="width: 12%;">
+                  <col style="width: 9%;">
+                  <col style="width: 12%;">
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Customer ID</th>
                     <th>Cluster</th>
-                    <th class="numeric">Cost</th>
                     <th class="numeric">Decision Score</th>
+                    <th class="numeric">Cost</th>
+                    <th class="numeric">ROI</th>
                   </tr>
                 </thead>
                 <tbody>
